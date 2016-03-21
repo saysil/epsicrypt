@@ -13,7 +13,7 @@ SRC_DIR = src/
 INS_DIR = /usr/bin
 
 
-CFLAGS  = -Wall -std=c99 -O2 -I $(INC) 
+CFLAGS  = -Wall -std=gnu99 -O2 -I $(INC) 
 
 
 DEPS    = $(wildcard $(INC)*.h)
@@ -31,7 +31,7 @@ LINK    = -lgmp -lcrypto -lpthread
 
 
 
-epsicrypt: $(DEPS) $(OBJ)
+$NAME: $(DEPS) $(OBJ)
 	$(CC) -o $(NAME) $(OBJ) $(CFLAGS) $(LINK)
 	
 $(OBJ): $(SRC)
@@ -43,7 +43,7 @@ clean:
 
 .PHONY: clean;
 
-install: $(epscirypt)
+install: $(NAME)
 	install -m=755 $(NAME) $(INS_DIR)
 
 .PHONY: install

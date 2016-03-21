@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <gmp.h>
 #include <stdlib.h>
+#include <limits.h>
 
 #include "rsa_extrafuncs.h"
 
@@ -39,8 +40,13 @@ int rsa_decrypt(mpz_t                  *num,
 		return MSGLONG_ERR;
 	}
 	
+    int n  = bitnum*2-128; //the padding can't be as big as the RSA modulus
+	int k0 = n>>2;
+    
+    #define k1 k0
+
 	unsigned char tp[sizeof(int)];
-	unsigned char tp2[(bitnum/8)/2+1];
+	unsigned char tp2[bitnum/CHAR_BIT];
 	
 	mpz_t r;
 	mpz_init(r);
@@ -60,12 +66,10 @@ int rsa_decrypt(mpz_t                  *num,
 	mpz_pow_ui(u, r, mpz_get_ui(privkey.exp)); //To prevent timing attacks
 	mpz_mul(*num, u, *num);
 	mpz_powm(*num, *num, privkey.d, privkey.mod);
-	mpz_divexact(*num, *num, r);
+	mpz_divexact(*num, *num, r); //actual decryption here
 	
-	int n=(bitnum-32)*2; //the padding can't be as big as the RSA modulus
-	int k0 = bitnum>>2;
-	#define k1 k0
-	
+    gmp_printf("After Encrypt: \n%ZX\n\n", *num);
+
 	unsigned char tp3[n-k0-k1];
 	
 	//set X & Y
@@ -109,15 +113,19 @@ int rsa_decrypt(mpz_t                  *num,
 	** fail later, mitigating ACC attacks **/
 	
 	char padtamp = 0;
-	
-	if (mpz_sizeinbase(m, 2) > (unsigned)bitnum/2+k1) { 
+    
+    gmp_printf("%ZX\n", m);
+
+	if (mpz_sizeinbase(m, 2) > n-k0) { 
         //trigger immediately if the size of our message is bigger than the specified padding
-		fread(tp2, 1, (bitnum/8)/2+1, fp);
-		for (unsigned int i=0; i<(unsigned)(bitnum/8)/2+k1; i++) {
-			for (int j=0; j<8; j++) {
-				(1 & tp2[i] >> j) ? mpz_setbit(m, i*8+j+k1) : mpz_clrbit(m, i*8+j+k1); //set out pseudomessage
+		fread(tp2, 1, bitnum/CHAR_BIT, fp);
+
+		for (unsigned int i=0; i < (unsigned)(bitnum/CHAR_BIT)+k1; i++) {
+			for (int j=0; j<CHAR_BIT; j++) {
+				(1 & tp2[i] >> j) ? mpz_setbit(m, i*CHAR_BIT+j+k1) : mpz_clrbit(m, i*CHAR_BIT+j+k1); //set out pseudomessage
 			}
 		}
+
 		padtamp = 1;
 	}
 	
@@ -153,7 +161,7 @@ int rsa_decrypt(mpz_t                  *num,
 	mpz_clear(g);
 	mpz_clear(m);
 	if (padtamp) {
-		return MSGLONG_ERR;
+		return 1;
 	}
 	return 0;
 }

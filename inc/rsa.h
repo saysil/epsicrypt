@@ -33,5 +33,16 @@ int rsa_decrypt(mpz_t                  *num,
                 FILE                   *fp); 
 //The entropy here does not matter; it does not change the value of the decryption
 
+int gen_entropy(const char          *pass,
+                const char          *salt,
+                FILE                *opt,
+                const unsigned int   length,
+                const unsigned short pbkdf_extra);
+
+int filencrypt(const char *pass,
+               FILE       *opt,
+               FILE       *entropy,
+               int         bitnum);
+
 #endif
 

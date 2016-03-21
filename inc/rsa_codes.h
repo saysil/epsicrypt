@@ -21,9 +21,7 @@
 
 #define VERSION_NO 1
 
-#define PBKDF_ITERATIONS 1250000
-
-extern int used;
+#define PBKDF_ITERATIONS 1000000
 
 #endif
 

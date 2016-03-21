@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <gmp.h>
 #include <stdlib.h>
+#include <limits.h>
 
 #include "rsa_extrafuncs.h"
 
@@ -37,9 +38,9 @@ int rsa_encrypt(mpz_t                 *num,
 		return NEGATIVE_ERR;
 	}
 	
-	int n = (bitsize-32)*2;
+	int n = (bitsize)*2-128; //we have to have less bits than the rsa modulus
 	
-	if (mpz_sizeinbase(*num, 2) >= (unsigned)n>>1) {
+	if (mpz_sizeinbase(*num, 2) > (unsigned)n>>1) {
 		return MSGLONG_ERR;
 	}
 	
@@ -54,10 +55,10 @@ int rsa_encrypt(mpz_t                 *num,
 	mpz_t x;
 	mpz_t y;
 	
-	k0 = bitsize>>2;
+	k0 = (n)>>2;
 	#define k1 k0
 	
-	unsigned char tp[k0/8+1];
+	unsigned char tp[k0/CHAR_BIT];
 	
 	mpz_init(m);
 	mpz_init(r);
@@ -65,16 +66,22 @@ int rsa_encrypt(mpz_t                 *num,
 	for (int i=0; i<bitsize; i++) {
 		(mpz_tstbit(*num, i)) ? mpz_setbit(m, i + k1) : mpz_clrbit(m, i+k1);
 	} //set m to the 'new' encrytion message
+
+    for (int i=0; i<k1; i++) {
+        mpz_clrbit(m, i);
+    } //zero out k1
 	
-	fread(tp, sizeof(char), k0/8+1, fp);
-	   
-    used += k0/8+1;
+	fread(tp, sizeof(char), k0/CHAR_BIT, fp);
 
 	int j=0;
-	for (int i=0; i<k1; i++) {
+	for (int i=0; i<k0; i++) {
 		j+=(i%8 == 0 && i!=0);
 		(1&tp[j]>>i%8) ? mpz_setbit(r, i) : mpz_clrbit(r, i);
-	} //set r to a random k1 bit string
+	} //set r to a random k0 bit string ??? WHY DID I WRITE THIS
+
+    gmp_printf("\n\n%ZX\n", m);
+
+    printf("N-k0 = %d\nSize = %d\n", bitsize*2-k0, mpz_sizeinbase(m, 2));
 	
 	/*********** Hash Function G ***********/
 	mpz_init(g);
@@ -106,7 +113,11 @@ int rsa_encrypt(mpz_t                 *num,
 	for (int i=0; i<(n-k0); i++) {
 		(mpz_tstbit(x, i)) ? mpz_setbit(*num, i+k0) : mpz_clrbit(*num, i+k0);
 	}
-	
+
+    printf("X = %d\nN-k0 = %d\nX+Y = %d\n", mpz_sizeinbase(x, 2), n-k0, mpz_sizeinbase(x, 2) + mpz_sizeinbase(y, 2));
+    
+    gmp_printf("Before Encrypt: \n%ZX\n\n", *num);
+
 	//Encrypt the data with padding, as C = m^e mod n
 	mpz_powm(*num, *num, pubkey.exp, pubkey.mod);
 	

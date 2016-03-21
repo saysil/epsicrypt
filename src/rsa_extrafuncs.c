@@ -54,9 +54,10 @@ int hashmpz(mpz_t       *r,
 		return HASH_ERR;
 	}
 
-	for (int i=length-1; i>=0; i--) {
+	for (int i=0; i<length; i++) {
 		for (int j=0; j<CHAR_BIT; j++) {
-			(1 & (string[i]>>j)) ? mpz_setbit(*r, i*8+j) : mpz_clrbit(*r, i*8+j); //Loop through and set all the bits in our hash
+			(1 & (string[i]>>j)) ? mpz_setbit(*r, i*CHAR_BIT+j) : mpz_clrbit(*r, i*CHAR_BIT+j); 
+            //Loop through and set all the bits in our hash
 		}
 	}
 
@@ -69,18 +70,12 @@ int setlargeprime(FILE          *fp,
                   mpz_t         *p, 
                   unsigned short bitcount) 
 {
-	unsigned char tp[bitcount/8]; //temp p
-	fread(tp, sizeof(char), bitcount/8, fp); //fill the buffer with random bytes
+	unsigned char tp[bitcount/CHAR_BIT]; //temp p
+	fread(tp, sizeof(char), bitcount/CHAR_BIT, fp); //fill the buffer with random bytes
 	
-    used += bitcount/8;
-
-	if (!bitcount%8) {
-		return BITS_NOT_8;
-	}
-	
-	for (int i=0; i<bitcount/8; i++) {
+	for (int i=0; i<bitcount/CHAR_BIT; i++) {
 		for (int j=0; j<CHAR_BIT; j++) {
-			(1 & tp[i] >> j) ? mpz_setbit(*p, i*8+j) : mpz_clrbit(*p, i*8+j); //set bits for p
+			(1 & tp[i] >> j) ? mpz_setbit(*p, i*CHAR_BIT+j) : mpz_clrbit(*p, i*CHAR_BIT+j); //set bits for p
 		}
 	}
 	if (!mpz_tstbit(*p, 0)) {
