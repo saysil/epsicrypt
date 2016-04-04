@@ -18,9 +18,16 @@ int hashmpz(mpz_t       *r,
             mpz_t        h,
             unsigned int length);
 
-int setlargeprime(FILE          *fp,
-                  mpz_t         *p,
-                  unsigned short bitcount);
+int setlargeprime(FILE  *restrict fp,
+                  mpz_t *restrict p,
+                  unsigned short  bitcount);
+
+void mpzfrombuf(mpz_t *restrict opt,
+                void  *restrict buf,
+                int             size);
+void buffrommpz(mpz_t *restrict opt,
+                void  *restrict buf,
+                int             size);
 
 #endif
 

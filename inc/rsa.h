@@ -12,6 +12,8 @@
 #ifndef RSA_H
 #define RSA_H
 
+#include <stdio.h>
+#include <gmp.h>
 #include "rsa_keys.h"
 
 void rsa_freekeypair(struct RsaPublic  *pubkey,
@@ -33,15 +35,21 @@ int rsa_decrypt(mpz_t                  *num,
                 FILE                   *fp); 
 //The entropy here does not matter; it does not change the value of the decryption
 
+mpz_t *filtompz(FILE               *opt,
+                 const unsigned int nummpz,
+                 const unsigned int bytenum);
+              
+
 int gen_entropy(const char          *pass,
                 const char          *salt,
                 FILE                *opt,
                 const unsigned int   length,
                 const unsigned short pbkdf_extra);
 
-int filencrypt(const char *pass,
-               FILE       *opt,
-               FILE       *entropy,
+int filencrypt(const char *pass,       /* Minimum File perms: */
+               FILE       *opt,        /* -r-- --- ---        */
+               FILE       *end,        /* --w- -r- -r-        */
+               FILE       *entropy,    /* -r-- -r- -r-        */
                int         bitnum);
 
 #endif

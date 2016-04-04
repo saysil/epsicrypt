@@ -40,7 +40,7 @@ int rsa_encrypt(mpz_t                 *num,
 	
 	int n = (bitsize)*2-128; //we have to have less bits than the rsa modulus
 	
-	if (mpz_sizeinbase(*num, 2) > (unsigned)n>>1) {
+	if (mpz_sizeinbase(*num, 2) > (unsigned)bitsize) {
 		return MSGLONG_ERR;
 	}
 	
@@ -81,7 +81,7 @@ int rsa_encrypt(mpz_t                 *num,
 
     gmp_printf("\n\n%ZX\n", m);
 
-    printf("N-k0 = %d\nSize = %d\n", bitsize*2-k0, mpz_sizeinbase(m, 2));
+    //printf("N-k0 = %d\nSize = %d\n", bitsize*2-k0, mpz_sizeinbase(m, 2));
 	
 	/*********** Hash Function G ***********/
 	mpz_init(g);
@@ -114,13 +114,14 @@ int rsa_encrypt(mpz_t                 *num,
 		(mpz_tstbit(x, i)) ? mpz_setbit(*num, i+k0) : mpz_clrbit(*num, i+k0);
 	}
 
-    printf("X = %d\nN-k0 = %d\nX+Y = %d\n", mpz_sizeinbase(x, 2), n-k0, mpz_sizeinbase(x, 2) + mpz_sizeinbase(y, 2));
+    //printf("X = %d\nN-k0 = %d\nX+Y = %d\n", mpz_sizeinbase(x, 2), n-k0, mpz_sizeinbase(x, 2) + mpz_sizeinbase(y, 2));
     
-    gmp_printf("Before Encrypt: \n%ZX\n\n", *num);
+    //gmp_printf("Before Encrypt: \n%ZX\n\n", *num);
 
 	//Encrypt the data with padding, as C = m^e mod n
 	mpz_powm(*num, *num, pubkey.exp, pubkey.mod);
 	
+    gmp_printf("Finished: \n%ZX\nSize: %d\n", *num, mpz_sizeinbase(*num, 2)/CHAR_BIT);
 	//close and free all our memory
 	
 	mpz_clear(m);

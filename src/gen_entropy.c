@@ -35,7 +35,7 @@ int gen_entropy(const char          *pass,
     }
 
     fwrite(tmp, sizeof(char), length, opt);
-    
+
     free(tmp);
 
     return 0;

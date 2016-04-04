@@ -19,6 +19,8 @@
 #include "rsa_codes.h"
 #include "rsa_keys.h"
 
+
+
 void rsa_freeKeyPair(struct RsaPublic  *pubkey, 
                      struct RsaPrivate *privkey) 
 {
@@ -32,6 +34,41 @@ void rsa_freeKeyPair(struct RsaPublic  *pubkey,
 	mpz_clear(privkey->q);
 	mpz_clear(privkey->u);
 }
+
+
+
+/*MPZ Setting Functions for Raw Bits */
+
+void mpzfrombuf(mpz_t *restrict opt,
+                void  *restrict buf,
+                int             size) //size in bytes
+{
+    char *charbuf = (char *)buf;
+
+    for (int i=0; i<size; i++) {
+        for (int j=0; j<CHAR_BIT; j++) {
+            (1 & (charbuf[i] >> j)) ? mpz_setbit(*opt, i*CHAR_BIT+j) : mpz_clrbit(*opt, i*CHAR_BIT+j);
+        }
+    }
+}
+
+
+void buffrommpz(mpz_t *restrict opt,
+                void  *restrict buf, //Assume buffer is allocated, if not, undefined behavior
+                int             size)
+{
+    char *charbuf = (char *)buf;
+
+    for (int i=0; i<size; i++) {
+        for (int j=0; j<CHAR_BIT; j++) {
+            charbuf[i] |= ((mpz_tstbit(*opt, i*CHAR_BIT+j)) << j);
+        }
+    }
+}
+
+
+
+/*Other useful functions */
 
 int hashmpz(mpz_t       *r, 
             mpz_t        h, 
@@ -54,17 +91,13 @@ int hashmpz(mpz_t       *r,
 		return HASH_ERR;
 	}
 
-	for (int i=0; i<length; i++) {
-		for (int j=0; j<CHAR_BIT; j++) {
-			(1 & (string[i]>>j)) ? mpz_setbit(*r, i*CHAR_BIT+j) : mpz_clrbit(*r, i*CHAR_BIT+j); 
-            //Loop through and set all the bits in our hash
-		}
-	}
+	mpzfrombuf(r, (void *)string, length);
 
 	free(string);
 	free(tempstore);
 	return 0;
 }
+
 
 int setlargeprime(FILE          *fp, 
                   mpz_t         *p, 
@@ -73,11 +106,8 @@ int setlargeprime(FILE          *fp,
 	unsigned char tp[bitcount/CHAR_BIT]; //temp p
 	fread(tp, sizeof(char), bitcount/CHAR_BIT, fp); //fill the buffer with random bytes
 	
-	for (int i=0; i<bitcount/CHAR_BIT; i++) {
-		for (int j=0; j<CHAR_BIT; j++) {
-			(1 & tp[i] >> j) ? mpz_setbit(*p, i*CHAR_BIT+j) : mpz_clrbit(*p, i*CHAR_BIT+j); //set bits for p
-		}
-	}
+	mpzfrombuf(p, (void *)tp, bitcount/CHAR_BIT);
+
 	if (!mpz_tstbit(*p, 0)) {
 		mpz_setbit(*p, 0);
 	}
