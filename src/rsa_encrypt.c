@@ -38,7 +38,7 @@ int rsa_encrypt(mpz_t                 *num,
 		return NEGATIVE_ERR;
 	}
 	
-	int n = (bitsize)*2-128; //we have to have less bits than the rsa modulus
+	int n = bitsize*2-128; //we have to have less bits than the rsa modulus
 	
 	if (mpz_sizeinbase(*num, 2) > (unsigned)bitsize) {
 		return MSGLONG_ERR;
@@ -55,7 +55,8 @@ int rsa_encrypt(mpz_t                 *num,
 	mpz_t x;
 	mpz_t y;
 	
-	k0 = (n)>>2;
+	k0 = n>>2;
+    //printf("\n\n%d\n\n", k0);
 	#define k1 k0
 	
 	unsigned char tp[k0/CHAR_BIT];
@@ -66,62 +67,66 @@ int rsa_encrypt(mpz_t                 *num,
 	for (int i=0; i<bitsize; i++) {
 		(mpz_tstbit(*num, i)) ? mpz_setbit(m, i + k1) : mpz_clrbit(m, i+k1);
 	} //set m to the 'new' encrytion message
-
+    
     for (int i=0; i<k1; i++) {
         mpz_clrbit(m, i);
     } //zero out k1
 	
 	fread(tp, sizeof(char), k0/CHAR_BIT, fp);
 
-	int j=0;
-	for (int i=0; i<k0; i++) {
-		j+=(i%8 == 0 && i!=0);
-		(1&tp[j]>>i%8) ? mpz_setbit(r, i) : mpz_clrbit(r, i);
-	} //set r to a random k0 bit string ??? WHY DID I WRITE THIS
+	mpzfrombuf(&r, tp, k0/CHAR_BIT);
+    //set r to a random k0 bit string ??? WHY DID I WRITE THIS
 
-    gmp_printf("\n\n%ZX\n", m);
+    //gmp_printf("\nBefore Padding\n%ZX\n", m);
 
     //printf("N-k0 = %d\nSize = %d\n", bitsize*2-k0, mpz_sizeinbase(m, 2));
 	
+    //gmp_printf("\nR: %ZX\n\n", r);
+
 	/*********** Hash Function G ***********/
 	mpz_init(g);
 	mpz_init(x);
 	
-	if (hashmpz(&g, r, (n-k0)/8)) {
+	if (hashmpz(&g, r, (bitsize+k1)/CHAR_BIT)) {
 		return HASH_ERR;
 	}  //set g2 to our new hash
 	
+    //printf("Size of m: %d\nSize of g: %d\n", mpz_sizeinbase(m,2), mpz_sizeinbase(g,2));
 	mpz_xor(x, m, g); //xor the two values to give us x
-	
+	//gmp_printf("\nX: %ZX\n\n", x);
 	/*********** Hash Function G ***********/
 	/*********** Hash Function H ***********/
 	mpz_init(h);
 	mpz_init(y);
 	
-	if (hashmpz(&h, x, k0/8)) {
+	if (hashmpz(&h, x, k0/CHAR_BIT)) {
 		return HASH_ERR;
 	} //set h2 to our new hash of k0 bits
 	
 	mpz_xor(y, r, h);
+    //gmp_printf("Y: %ZX\n", y);
 	/*********** Hash Function H ***********/
 	
+    mpz_set_ui(*num, 0);
 	//concatenate the new numbers x and y
 	for (int i=0; i<k0; i++) {
 		(mpz_tstbit(y, i)) ? mpz_setbit(*num, i) : mpz_clrbit(*num, i);
 	}
 	
-	for (int i=0; i<(n-k0); i++) {
+	for (int i=0; i<(bitsize+k1); i++) {
 		(mpz_tstbit(x, i)) ? mpz_setbit(*num, i+k0) : mpz_clrbit(*num, i+k0);
 	}
 
     //printf("X = %d\nN-k0 = %d\nX+Y = %d\n", mpz_sizeinbase(x, 2), n-k0, mpz_sizeinbase(x, 2) + mpz_sizeinbase(y, 2));
     
+    //printf("Size of message: %d\n", mpz_sizeinbase(*num, 2));
+
     //gmp_printf("Before Encrypt: \n%ZX\n\n", *num);
 
 	//Encrypt the data with padding, as C = m^e mod n
 	mpz_powm(*num, *num, pubkey.exp, pubkey.mod);
 	
-    gmp_printf("Finished: \n%ZX\nSize: %d\n", *num, mpz_sizeinbase(*num, 2)/CHAR_BIT);
+    //gmp_printf("Finished: \n%ZX\nSize: %d\n", *num, mpz_sizeinbase(*num, 2)/CHAR_BIT);
 	//close and free all our memory
 	
 	mpz_clear(m);

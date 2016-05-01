@@ -12,8 +12,15 @@ SRC_DIR = src/
 
 INS_DIR = /usr/bin
 
+_D      = 
 
-CFLAGS  = -Wall -std=gnu99 -O2 -I $(INC) 
+#Uncomment these lines to make modifications to PBKDF values
+#_D     += $(_D) -DPBKDF_OAEP_CUSTOM=[Your Value]
+_D     += -DPBKDF_OAEP_FAST
+#_D     += $(_D) -DPBKDF_CUSTOM=[Your value]
+
+
+CFLAGS  = -Wall -std=gnu99 -O2 -I $(INC)
 
 
 DEPS    = $(wildcard $(INC)*.h)
@@ -30,12 +37,11 @@ _F      = $(patsubst $(OBJ_DIR)%, $(SRC_DIR)%, $@)
 LINK    = -lgmp -lcrypto -lpthread
 
 
-
 $NAME: $(DEPS) $(OBJ)
-	$(CC) -o $(NAME) $(OBJ) $(CFLAGS) $(LINK)
+	$(CC) $(CFLAGS) -o $(NAME) $(OBJ) $(LINK)
 	
 $(OBJ): $(SRC)
-	$(CC) -c -o $@ $(patsubst %.o, %.c, $(_F)) $(CFLAGS)
+	$(CC) -c $(CFLAGS) $(_D) -o $@ $(patsubst %.o, %.c, $(_F))
 
 clean: 
 	rm $(OBJ)

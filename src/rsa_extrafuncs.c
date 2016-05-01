@@ -87,7 +87,7 @@ int hashmpz(mpz_t       *r,
 	buffer = mpz_get_str(tempstore, 16, h);
 
                              /*mpz_sizeinbase returns the size, a null terminator, and a minus sign*/
-	if (!PKCS5_PBKDF2_HMAC(buffer, mpz_sizeinbase(h, 16)+2, NULL, 0, PBKDF_ITERATIONS, EVP_sha512(), length, string)) {
+	if (!PKCS5_PBKDF2_HMAC(buffer, mpz_sizeinbase(h, 16)+2, NULL, 0, PBKDF_OAEP_ITERATIONS, EVP_sha512(), length, string)) {
 		return HASH_ERR;
 	}
 

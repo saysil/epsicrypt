@@ -16,6 +16,8 @@
 #include <gmp.h>
 #include "rsa_keys.h"
 
+#include <inttypes.h>
+
 void rsa_freekeypair(struct RsaPublic  *pubkey,
                      struct RsaPrivate *privkey);
 
@@ -41,16 +43,21 @@ mpz_t *filtompz(FILE               *opt,
               
 
 int gen_entropy(const char          *pass,
-                const char          *salt,
+                const unsigned char *salt,
                 FILE                *opt,
-                const unsigned int   length,
+                const size_t         length,
                 const unsigned short pbkdf_extra);
 
 int filencrypt(const char *pass,       /* Minimum File perms: */
                FILE       *opt,        /* -r-- --- ---        */
                FILE       *end,        /* --w- -r- -r-        */
                FILE       *entropy,    /* -r-- -r- -r-        */
-               int         bitnum);
+               uint32_t    bitnum);
+
+int fildecrypt(const char *pass,
+               FILE       *opt,
+               FILE       *end,
+               FILE       *entropy);
 
 #endif
 

@@ -42,7 +42,7 @@ int rsa_decrypt(mpz_t                  *num,
 	
     int n  = bitnum*2-128; //the padding can't be as big as the RSA modulus
 	int k0 = n>>2;
-    
+    //printf("\n\n%d\n\n", k0);
     #define k1 k0
 
 	unsigned char tp[sizeof(int)];
@@ -56,11 +56,8 @@ int rsa_decrypt(mpz_t                  *num,
 	
 	fread(tp, 1, sizeof(int), fp);
 	
-	for (unsigned int i=0; i<sizeof(int); i++) {
-		for (int j=0; j<8; j++) {
-			(1 & tp[i] >> j) ? mpz_setbit(r, i*8+j) : mpz_clrbit(r, i*8+j); //set bits for p
-		}
-	}
+    mpzfrombuf(&r, tp, sizeof(int)-1);
+	
     mpz_add_ui(r, r, 1);
 	
 	mpz_pow_ui(u, r, mpz_get_ui(privkey.exp)); //To prevent timing attacks
@@ -68,9 +65,9 @@ int rsa_decrypt(mpz_t                  *num,
 	mpz_powm(*num, *num, privkey.d, privkey.mod);
 	mpz_divexact(*num, *num, r); //actual decryption here
 	
-    gmp_printf("After Encrypt: \n%ZX\n\n", *num);
+    //gmp_printf("After Encrypt: \n%ZX\n\n", *num);
 
-	unsigned char tp3[n-k0-k1];
+	unsigned char tp3[bitnum/CHAR_BIT];
 	
 	//set X & Y
 	
@@ -79,20 +76,22 @@ int rsa_decrypt(mpz_t                  *num,
 	mpz_init(y);
 	mpz_init(m);
 	
-	for (int i=0; i<(n-k0); i++) {
+	for (int i=0; i<bitnum+k1; i++) {
 		(mpz_tstbit(*num, i+k0)) ? mpz_setbit(x, i) : mpz_clrbit(x, i);
 	}
+    //gmp_printf("\nX: %ZX\n", x);
 	
 	for (int i=0; i<k0; i++) {
 		(mpz_tstbit(*num, i)) ? mpz_setbit(y, i) : mpz_clrbit(y, i);
 	}
-	
+	//gmp_printf("Y: %ZX\n", y);
+    //gmp_printf("\nR: %ZX\n\n", r);
 	/*********** Hash Function H ***********/
 	mpz_set_ui(r, 0);
 	mpz_t h;
 	mpz_init(h);
 	
-	hashmpz(&h, x, k0/8);
+	hashmpz(&h, x, k0/CHAR_BIT);
 	
 	mpz_xor(r, h, y);
 	
@@ -101,7 +100,7 @@ int rsa_decrypt(mpz_t                  *num,
 	mpz_t g;
 	mpz_init(g);
 	
-	hashmpz(&g, r, (n-k0)/8);
+	hashmpz(&g, r, (bitnum+k1)/CHAR_BIT);
 	
 	mpz_xor(m, g, x); //Here, M is both m and k1
 	
@@ -114,17 +113,13 @@ int rsa_decrypt(mpz_t                  *num,
 	
 	char padtamp = 0;
     
-    gmp_printf("%ZX\n", m);
+    //gmp_printf("%ZX\n", m);
 
-	if (mpz_sizeinbase(m, 2) > n-k0) { 
+	if (mpz_sizeinbase(m, 2) > (bitnum+k1)) { 
         //trigger immediately if the size of our message is bigger than the specified padding
 		fread(tp2, 1, bitnum/CHAR_BIT, fp);
-
-		for (unsigned int i=0; i < (unsigned)(bitnum/CHAR_BIT)+k1; i++) {
-			for (int j=0; j<CHAR_BIT; j++) {
-				(1 & tp2[i] >> j) ? mpz_setbit(m, i*CHAR_BIT+j+k1) : mpz_clrbit(m, i*CHAR_BIT+j+k1); //set out pseudomessage
-			}
-		}
+        printf("k1 + bitnum > m\n");
+        mpzfrombuf(&m, tp2, bitnum/CHAR_BIT);
 
 		padtamp = 1;
 	}
@@ -137,12 +132,9 @@ int rsa_decrypt(mpz_t                  *num,
 			for (int i=0; i<k1+bitnum+k0; i++) {
 				mpz_clrbit(m, i); //make it look correctly padded
 			}
-			fread(tp3, 1, (n-k0-k1), fp);
-			for (int j=0; j<(n-k0-k1); j++) {
-				for (int k=0; k<8; k++) {
-					(1 & tp3[j] >> k) ? mpz_setbit(m, j*8+k+k1) : mpz_clrbit(m, j*8+k+k1); //set out pseudomessage
-				}
-			}
+			fread(tp3, 1, bitnum/CHAR_BIT, fp);
+
+            mpzfrombuf(&m, tp3, bitnum/CHAR_BIT);
 			break;
 		}
 	}

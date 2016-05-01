@@ -19,16 +19,16 @@
 
 //Returns 0 on success, 1 on error
 int gen_entropy(const char          *pass,
-                const char          *salt,
+                const unsigned char *salt,
                 FILE                *opt,
-                const unsigned int   length,
-                unsigned short       extra_iterations) //file to be written to
+                const size_t         length,
+                const unsigned short pbkdf_extra) //file to be written to
 {
     unsigned char *tmp = malloc(length);
 
     if (!PKCS5_PBKDF2_HMAC(pass, strlen(pass),
-          (unsigned char *)salt, strlen(salt),
-                           PASS_ITERATIONS + extra_iterations, 
+                           salt, strlen((char *)salt),
+                           pbkdf_extra, 
                            EVP_sha512(), 
                            length, tmp)) {
         return 1;
