@@ -156,13 +156,15 @@ int fildecrypt(const char *pass,
 
     mpz_clear(chmpz);
     
-    mpzarr = calloc(numops, sizeof(mpz_t));
+    mpzarr = filtompz(opt, numops, BYTENUM*2);
+
+    /*mpzarr = calloc(numops, sizeof(mpz_t));
 
     for (int i=0; i<numops; i++) {
         memset(tmpread, 0, BYTENUM*2);
         fread(tmpread, sizeof(char), BYTENUM*2, opt);
         mpzfrombuf(&mpzarr[i], tmpread, BYTENUM*2);
-    }
+    }*/
     
     inf.privkey = privkey;
     inf.bitsize = bitnum;

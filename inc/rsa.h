@@ -38,8 +38,8 @@ int rsa_decrypt(mpz_t                  *num,
 //The entropy here does not matter; it does not change the value of the decryption
 
 mpz_t *filtompz(FILE               *opt,
-                 const unsigned int nummpz,
-                 const unsigned int bytenum);
+                const unsigned int nummpz,
+                const unsigned int bytenum);
               
 
 int gen_entropy(const char          *pass,
@@ -55,9 +55,9 @@ int filencrypt(const char *pass,       /* Minimum File perms: */
                uint32_t    bitnum);
 
 int fildecrypt(const char *pass,
-               FILE       *opt,
-               FILE       *end,
-               FILE       *entropy);
+               FILE       *opt,        /* -r-- --- ---        */
+               FILE       *end,        /* --w- -r- -r-        */
+               FILE       *entropy);   /* -r-- -r- -r-        */
 
 #endif
 

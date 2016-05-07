@@ -22,8 +22,8 @@ mpz_t *filtompz(FILE                *opt,
                 const unsigned int   bytenum)
 {
 
-    mpz_t *mpzarr  = malloc(sizeof(mpz_t)*nummpz);
-    char  *tmpread = malloc(sizeof(char )*bytenum);
+    mpz_t *mpzarr  = calloc(nummpz,  sizeof(mpz_t));
+    char  *tmpread = calloc(bytenum, sizeof(char ));
        
     int aread;
     for (int i=0; i<nummpz; i++) {
