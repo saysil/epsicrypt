@@ -114,8 +114,9 @@ int main(int argc, char *argv[])
     }
     
     if (optind < argc) {
-        tmp = fopen(tmpc, "r");
-        end = fopen(argv[optind], "w");
+        tmp = fopen(tmpc, "rb");
+        printf("File: %s\n", tmpc);
+        end = fopen(argv[optind], "wb");
 
         printf("Password: %s\n", password);
         printf("Arg: %s\n", argv[optind]);

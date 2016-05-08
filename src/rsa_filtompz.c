@@ -36,8 +36,8 @@ mpz_t *filtompz(FILE                *opt,
 
         mpz_init(mpzarr[i]);
         
-        printf("%.*s", bytenum, tmpread);
-        printf("\n%d\n", aread);
+        //printf("%.*s", bytenum, tmpread);
+        //printf("\n%d\n", aread);
         
         mpzfrombuf(&mpzarr[i], tmpread, bytenum);
         //buffrommpz(&mpzarr[i], tmpread, bytenum);

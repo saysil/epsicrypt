@@ -106,6 +106,7 @@ int fildecrypt(const char *pass,
     fread(&tmpcheck, sizeof(uint32_t), 1, opt);
     
     if (tmpcheck != check) {
+        printf("%X\n", tmpcheck);
         return 1;
     }
 
@@ -174,17 +175,20 @@ int fildecrypt(const char *pass,
 
     threads = calloc(numops, sizeof(pthread_t));
 
-    for (int i=0; i<numops; i++) {
-        blocks[i].inf      = &inf;
-        blocks[i].num      = &mpzarr[i];
-        blocks[i].blocknum = i;
+    for (int j = 0; j < numops/MAXTHREADS + 1; j++) {
+    	for (int i = 0; i < MAXTHREADS && i+j*MAXTHREADS < numops; i++) {
+        	blocks[i + j*MAXTHREADS].inf      = &inf;
+        	blocks[i + j*MAXTHREADS].num      = &mpzarr[i + j*MAXTHREADS];
+        	blocks[i + j*MAXTHREADS].blocknum = i + j*MAXTHREADS;
+        
+        	pthread_create(&threads[i + j*MAXTHREADS], NULL, dc_wrapper, (void *)&blocks[i + j*MAXTHREADS]);
+    	} //create threads for decryption
 
-        pthread_create(&threads[i], NULL, dc_wrapper, (void *)&blocks[i]);
-    }
-
-    for (int i=0; i<numops; i++) {
-        pthread_join(threads[i], NULL);
-    }
+    	for (int i=0; i < MAXTHREADS && i + j*MAXTHREADS < numops; i++) {
+        	//printf("Joining Block %d\n", i);
+       		pthread_join(threads[i + j*MAXTHREADS], NULL);
+    	}
+	}
 
     free(blocks);
 

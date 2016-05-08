@@ -15,10 +15,17 @@ INS_DIR = /usr/bin
 _D      = 
 
 #Uncomment these lines to make modifications to PBKDF values
-#_D     += $(_D) -DPBKDF_OAEP_CUSTOM=[Your Value]
-_D     += -DPBKDF_OAEP_FAST
-#_D     += $(_D) -DPBKDF_CUSTOM=[Your value]
+#_D     += -DPBKDF_OAEP_CUSTOM=[Your Value]
+#_D     += -DPBKDF_OAEP_FAST
+_D     += -DPBKDF_CUSTOM=5000
 
+#Uncomment these to make thread modifications, a good value is your CPUs cores - 1
+_D     += -DMAXTHREADS=7
+
+#options for GPU computing (not yet implemented)
+#_D     += OPENCL
+#_D     += CUDA
+#_D     += CPU
 
 CFLAGS  = -Wall -std=gnu99 -O2 -I $(INC)
 
