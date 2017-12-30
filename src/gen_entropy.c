@@ -20,9 +20,9 @@
 //Returns 0 on success, 1 on error
 int gen_entropy(const char          *pass,
                 const unsigned char *salt,
-                FILE                *opt,
+                FILE                *opt, //File to be written to
                 const size_t         length,
-                const unsigned short pbkdf_extra) //file to be written to
+                const unsigned short pbkdf_extra) 
 {
     unsigned char *tmp = malloc(length);
 

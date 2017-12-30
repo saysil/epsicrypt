@@ -20,7 +20,7 @@
 #define MSGLONG_ERR 4
 #define VERSION_ERR 5
 
-#define VERSION_NO 1
+static const uint32_t VERSION_NO = 2;
 
 #ifdef PBKDF_CUSTOM
     #define PBKDF_ITERATIONS PBKDF_CUSTOM
@@ -31,7 +31,7 @@
 
 
 #ifdef PBKDF_OAEP_CUSTOM
-    #define PBKDF_OAEP_ITERATIONS OAEP_PBKDF_CUSTOM
+    #define PBKDF_OAEP_ITERATIONS PBKDF_OAEP_CUSTOM
 #else 
     #ifdef PBKDF_OAEP_FAST
         #define PBKDF_OAEP_ITERATIONS 300000

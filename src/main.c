@@ -51,14 +51,21 @@ int main(int argc, char *argv[])
     #define ENCRYPT 16
     #define DECRYPT 32
     
+    static const char *hlp = \
+    "Usage: epsicrypt -[hepbd] --verbose --quiet\n\n\
+    -p: Specify Password used for key generation\n\
+    -e file: encrypt a given file using a password\n\
+    -d file: decrypt a given file using a password\n\
+    -b bitsize: Choose bitsize for rsa\n";
+ 
     static int vflag  = 0;
     int bitnum = 2048;
 
     int flags  = 0;
 
-    FILE *tmp;
-    FILE *end;
-    char *tmpc;
+    FILE *tmp  = NULL;
+    FILE *end  = NULL;
+    char *tmpc = NULL;
     FILE *ent = fopen("/dev/urandom", "r");
 
     static struct option long_options[] =
@@ -67,23 +74,23 @@ int main(int argc, char *argv[])
         {"quiet",    no_argument,       &vflag, 0},
         {"help",     no_argument,       0, 'h'},
 
-        {"encrypt",  required_argument, 0, 'e'},
-        {"password", required_argument, 0, 'p'},
-        {"decrypt",  required_argument, 0, 'd'},
-        {"bitsize",  required_argument, 0, 'b'},
+        {"encrypt",      required_argument, 0, 'e'},
+        {"password",     required_argument, 0, 'p'},
+        {"decrypt",      required_argument, 0, 'd'},
+        {"rsa_bitsize",  required_argument, 0, 'b'},
         { NULL, 0, NULL, 0 }
     };
     
     char c = 0;
     int option_index = 0;
 
-    char *password;
+    char *password = NULL;
 
     while (1) {
         c = 0;
         option_index = 0;
 
-        c = getopt_long(argc, argv, "he:d:b:p:", long_options, &option_index);
+        c = getopt_long(argc, argv, "vqhe:d:b:p:", long_options, &option_index);
 
         if (c == -1) {
             break;
@@ -91,6 +98,12 @@ int main(int argc, char *argv[])
 
         switch (c) {
         case 0:
+            break;
+        case 'v':
+            vflag = 1;
+            break;
+        case 'q':
+            vflag = 0;
             break;
         case 'e':
             tmpc     = optarg;
@@ -107,24 +120,39 @@ int main(int argc, char *argv[])
             password = optarg;
             break;
         default:
+            printf("%s\n", hlp);
             exit(1);
             break;
         }
 
     }
     
-    if (optind < argc) {
+    if (tmpc == NULL) {
+        return 1;
+    }
+    if (password == NULL) {
+        return 1;
+    }
+
+    while (optind < argc && argv[optind][0] != '-') {
         tmp = fopen(tmpc, "rb");
+        if (tmp == NULL) {
+            return 1;
+        }
+        
         printf("File: %s\n", tmpc);
         end = fopen(argv[optind], "wb");
-
-        printf("Password: %s\n", password);
-        printf("Arg: %s\n", argv[optind]);
-        if (flags & ENCRYPT) {
-            filencrypt(password, tmp, end, ent, bitnum);
-        } else if (flags & DECRYPT) {
-            fildecrypt(password, tmp, end, ent);
+        if (end == NULL) {
+            return 1;
         }
+
+        if (flags & ENCRYPT) {
+            filencrypt(password, tmp, end, ent, bitnum, vflag);
+        } else if (flags & DECRYPT) {
+            fildecrypt(password, tmp, end, ent, vflag);
+        }
+
+        optind++;
     }
 
     return 0;

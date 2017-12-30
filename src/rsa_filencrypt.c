@@ -34,6 +34,7 @@ struct ec_info {
     struct RsaPublic pubkey;
     int              bitsize;
     FILE            *fp;
+    char             verbose;
 };
 
 struct ec_block_info {
@@ -45,12 +46,17 @@ struct ec_block_info {
 void *ec_wrapper(void *arg)
 {   
     struct ec_block_info blck = *(struct ec_block_info *)arg;
+    
+    //printf("Starting block %d\n", blck.blocknum);
 
     rsa_encrypt(blck.num, blck.inf->pubkey, blck.inf->bitsize, blck.inf->fp);
-
-    //printf("Finished Block %d\n", blck.blocknum);
+    
+    v_printf(blck.inf->verbose, "Finished Block %d\n", blck.blocknum);
     return NULL;
 } //Wrapper for multithreading
+
+
+
 
 
 
@@ -58,7 +64,8 @@ int filencrypt(const char *pass,
                FILE       *opt,
                FILE       *end,
                FILE       *entropy,
-               uint32_t    bitnum)
+               uint32_t    bitnum,
+               char        verbose)
 {  
     #define BYTENUM (bitnum/CHAR_BIT)
     
@@ -68,7 +75,7 @@ int filencrypt(const char *pass,
     unsigned char  salt[SALTSIZE+1];
 
     int finsize;
-    int numops; //number of encryption operations we need to do
+    int numops;
     
     char *fin;
     FILE *ret;
@@ -133,22 +140,22 @@ int filencrypt(const char *pass,
         
     rsa_genkeys(&pubkey, &privkey, bitnum, encrypt_key);
     
-    gmp_printf("Pubkey: \n%ZX\n", pubkey.mod);
+    //gmp_printf("Pubkey: \n%ZX\n", pubkey.mod);
     
     overval = (st.st_size % BYTENUM);
 
     #define OVERFLOW (st.st_size % BYTENUM != 0)
     #define MAINSIZE (st.st_size - overval)
     
-    printf("size: %d\n\n", st.st_size);
+    v_printf(verbose, "size: %d\n\n", st.st_size);
 
-    finsize = (SALTSIZE + sizeof(pbkdfval) + sizeof(uint32_t) * 3 + BYTENUM*2*(OVERFLOW+1) + MAINSIZE*2);
-             /*Obvious    our constant debugs   size of our byte   we need 2 extra      our main file *
-              *           DEADBEEF unencrypted, number and         blocks, one for                    *
-              *                                 overflow           DEADBEEF encrypted,                *
-              *           and our PBKDFI val                       and one for overflow               */
+    finsize = (SALTSIZE + sizeof(pbkdfval) + sizeof(uint32_t) * 4 + BYTENUM*2*(OVERFLOW+1) + MAINSIZE*2 + 3);
+             /*Obvious    our constant debugs   size of our byte    we need 2 extra     our main file     ID    *
+              *           DEADBEEF unencrypted, number and          blocks, one for                             *
+              *                                 overflow,           DEADBEEF encrypted,                         *
+              *           and our PBKDFI val    also our release #  and one for overflow                        */
     
-    printf("Finsize: %d\n", finsize);
+    v_printf(verbose, "Finsize: %d\n", finsize);
 
     fin = calloc(finsize+1, sizeof(char));
     ret = fmemopen(fin, finsize+1, "wb+");
@@ -156,13 +163,19 @@ int filencrypt(const char *pass,
 
 
     pbkdftot = pbkdftmp+pbkdfi+PBKDF_MIN; //Total PBKDF Iterations
-    fwrite(salt,      sizeof(char), SALTSIZE, end);
+
+    static const char *eps = "EPS";
+    fwrite(eps,         sizeof(char),     3, end);
+    fwrite(&VERSION_NO, sizeof(uint32_t), 1, end);
+    fwrite(&check,      sizeof(uint32_t), 1, end);
+    fwrite(salt,        sizeof(char), SALTSIZE, end);
+
     //printf("%s\n", salt);
+
     fwrite(&bitnum,   sizeof(uint32_t), 1, end);
     fwrite(&pbkdftot, sizeof(pbkdfval), 1, end);
     fwrite(&overval,  sizeof(uint32_t), 1, end);
-    printf("Overflow: %d\n", overval);
-    fwrite(&check,    sizeof(uint32_t), 1, end);
+    v_printf(verbose, "Overflow: %d\n", overval);
 
 
     mpz_t chmpz;
@@ -172,7 +185,7 @@ int filencrypt(const char *pass,
     numops = (OVERFLOW + MAINSIZE/BYTENUM);
               /*only add 1 if we have more*
                *bytes than we can store in*
-               *a 2048 block              */
+               *a 2048 bit block          */
     
     threads = calloc(numops, sizeof(pthread_t));
     
@@ -183,7 +196,7 @@ int filencrypt(const char *pass,
     }
     
     //printf("File size: %d\n", (int)st.st_size);
-    printf("mpzbuf filled.\nNumber of Operations needed: %d\n\n", numops);
+    v_printf(verbose, "mpzbuf filled.\nNumber of Operations needed: %d\n\n", numops);
     
     tmpread = calloc(sizeof(char), BYTENUM*2);
     if (!tmpread) {
@@ -194,26 +207,31 @@ int filencrypt(const char *pass,
     
     buffrommpz(&chmpz, tmpread, BYTENUM*2);
     fwrite(tmpread, sizeof(char), BYTENUM*2, end);
-    //write check
+    //encrypt and write check
 
     mpz_clear(chmpz);
-    
+    //...then clear check
+
     inf.pubkey  = pubkey;
     inf.bitsize = bitnum;
     inf.fp      = entropy;
+    inf.verbose = verbose;
     
     blocks      = calloc(numops, sizeof(struct ec_block_info));
     
-    printf("Max Threads: %d\nNumloops: %d\n", MAXTHREADS, numops/MAXTHREADS+1);
+    //printf("Max Threads: %d\nNumloops: %d\n", MAXTHREADS, numops/MAXTHREADS+1);
 
-    for (int j = 0; j < numops/MAXTHREADS; j++) {
+    for (int j = 0; j < numops/MAXTHREADS + (numops % MAXTHREADS != 0); j++) {
         for (int i = 0; i < MAXTHREADS && i+j*MAXTHREADS < numops; i++) {
-            //printf("%d\n\n", i+j*MAXTHREADS);
+            //printf("%d\n\n", i+j*MAXTHREADS); //Debug, not verbose
             blocks[i + j*MAXTHREADS].inf      = &inf;
             blocks[i + j*MAXTHREADS].num      = &mpzarr[i+j*MAXTHREADS];
             blocks[i + j*MAXTHREADS].blocknum = i+j*MAXTHREADS;
         
-            pthread_create(&threads[i + j*MAXTHREADS], NULL, ec_wrapper, (void *)&blocks[i + j*MAXTHREADS]);
+            if (pthread_create(&threads[i + j*MAXTHREADS], NULL, ec_wrapper, (void *)&blocks[i + j*MAXTHREADS])) {
+                printf("Error creating thread.\n");
+                return 1;
+            }
         } //create threads for encryption
 
         for (int i=0; i < MAXTHREADS && i + j*MAXTHREADS < numops; i++) {
@@ -224,14 +242,14 @@ int filencrypt(const char *pass,
 
     free(blocks);
 
-    printf("Threads Completed\nWriting data.\n\n");
+    v_printf(verbose, "Threads Completed\nWriting data.\n\n");
 
     /* So now we have a fully encrypted array of mpz integers. *
      * We'll write that to a buffer, and then we'll just write *
      * the buffer to the file.                                 */
     
     memset(tmpread, 0, BYTENUM*2);
-
+    
     for (int i=0; i<numops; i++) {
         memset(tmpread, 0, BYTENUM*2);
         buffrommpz(&mpzarr[i], tmpread, BYTENUM*2);
@@ -242,7 +260,7 @@ int filencrypt(const char *pass,
     } //write the encrypted file
     //TODO: put this in seperate function. mpztofil?
     
-    printf("%d\n", finsize);
+    v_printf(verbose, "%d\n", finsize);
 
     /*tmpread = realloc(tmpread, finsize);
     if (!tmpread) {
@@ -255,10 +273,11 @@ int filencrypt(const char *pass,
     fread(tmpread,  sizeof(char), finsize, ret);
     fwrite(tmpread, sizeof(char), finsize, end);
     */
+
     for (int i=0; i<numops; i++) {
         mpz_clear(mpzarr[i]);
     } //clear out all the mpzs
-    printf("Mpzs cleared\n");
+    v_printf(verbose, "Mpzs cleared\n");
 
     free(mpzarr);
     free(threads);

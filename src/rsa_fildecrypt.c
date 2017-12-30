@@ -32,6 +32,7 @@ struct dc_info {
     struct RsaPrivate privkey;
     uint32_t          bitsize;
     FILE             *fp;
+    char              verbose;
 };
 
 struct dc_block_info {
@@ -46,21 +47,26 @@ void *dc_wrapper(void *arg)
 
     rsa_decrypt(blck.num, blck.inf->privkey, blck.inf->bitsize, blck.inf->fp);
 
-    printf("Finished Block %d\n", blck.blocknum);
+    v_printf(blck.inf->verbose, "Finished Block %d\n", blck.blocknum);
     return NULL;
 
 }
 
+
+
+
 int fildecrypt(const char *pass,
                FILE       *opt,
                FILE       *end,
-               FILE       *entropy)
+               FILE       *entropy,
+               char        verbose)
 {
     unsigned char salt[SALTSIZE + 1];
     uint32_t      bitnum;
     pbkdfval      pbkdftot;
     uint32_t      tmpcheck;
     uint32_t      overval;
+    uint32_t      vers;
 
     struct stat st;
     int         filedes = fileno(opt);
@@ -90,25 +96,40 @@ int fildecrypt(const char *pass,
     if (fstat(filedes, &st)) {
         return 1;
     }
-
-    fread(salt, sizeof(char), SALTSIZE, opt);
-    salt[SALTSIZE] = '\0';
     
-    //printf("%d\n%s\n", strlen(salt), salt);
-
-
-    fread(&bitnum,   sizeof(uint32_t), 1, opt);
-    //printf("%d\n", bitnum);
-    fread(&pbkdftot, sizeof(pbkdfval), 1, opt);
-    //printf("%d\n", pbkdftot);
-    fread(&overval,  sizeof(uint32_t), 1, opt);
-    printf("Overflow: %d\n", overval);
-    fread(&tmpcheck, sizeof(uint32_t), 1, opt);
+    /* Start reading the information we need from the file. */
     
-    if (tmpcheck != check) {
-        printf("%X\n", tmpcheck);
+    static char eps[3];
+    fread(eps, sizeof(char), 3, opt);
+    if (strncmp("EPS", eps, 3)) {
         return 1;
     }
+
+
+    fread(&vers,     sizeof(uint32_t), 1, opt);
+    fread(&tmpcheck, sizeof(uint32_t), 1, opt);
+    if (tmpcheck != check) {
+        v_printf(verbose, "%X\n", tmpcheck);
+        return 1;
+    }
+
+    
+
+    fread(salt,  sizeof(char),     SALTSIZE, opt);
+    salt[SALTSIZE] = '\0';
+    
+    //v_printf(verbose, "%d\n%s\n", strlen(salt), salt);
+    
+
+    fread(&bitnum,   sizeof(uint32_t), 1, opt);
+    //v_printf(verbose, "%d\n", bitnum);
+    fread(&pbkdftot, sizeof(pbkdfval), 1, opt);
+    //v_printf(verbose, "%d\n", pbkdftot);
+    fread(&overval,  sizeof(uint32_t), 1, opt);
+    v_printf(verbose, "Overflow: %d\n", overval);
+
+
+    /* Get started with the decryption */
 
     char *encrypt_buf = calloc(BYTENUM*2+1, sizeof(char));
     FILE *encrypt_key = fmemopen(encrypt_buf, BYTENUM*2+1, "w+");
@@ -122,21 +143,22 @@ int fildecrypt(const char *pass,
 
     rsa_genkeys(&pubkey, &privkey, bitnum, encrypt_key);
 
-    gmp_printf("Pubkey: \n%ZX\n", pubkey.mod);
+    //gmp_printf("Pubkey: \n%ZX\n", pubkey.mod);
     
-    #define METADAT (sizeof(char) * SALTSIZE + sizeof(uint32_t) * 3 + sizeof(pbkdfval) + BYTENUM*2)
+    /*                                         version #, overflow,                                 ID */
+    #define METADAT (sizeof(char) * SALTSIZE + sizeof(uint32_t) * 4 + sizeof(pbkdfval) + BYTENUM*2 + 3)
     /*                salt, obviously,   DEADBEEF unencrypted + bitnum,  pbkdf value,    DEADBEEF encrypted */
     finsize = st.st_size - METADAT;
     
-    if (finsize % BYTENUM != 0) {
+    if (finsize % BYTENUM != 0 || finsize == 0) {
         return 1;
     }
 
-    printf("%d\n", finsize);
+    v_printf(verbose, "%d\n", finsize);
     
     
     numops = finsize / (BYTENUM*2);
-    printf("Number of Operations: %d\n", numops);
+    v_printf(verbose, "Number of Operations: %d\n", numops);
     
 
 
@@ -150,7 +172,7 @@ int fildecrypt(const char *pass,
     
     rsa_decrypt(&chmpz, privkey, bitnum, entropy);
 
-    gmp_printf("Decrypted: \n%ZX\n", chmpz);
+    //gmp_printf("Decrypted: \n%ZX\n", chmpz);
     if (mpz_cmp_ui(chmpz, check)) {
         return 1;
     }
@@ -170,6 +192,7 @@ int fildecrypt(const char *pass,
     inf.privkey = privkey;
     inf.bitsize = bitnum;
     inf.fp      = entropy;
+    inf.verbose = verbose;
     
     blocks      = calloc(numops, sizeof(struct dc_block_info));
 
@@ -185,14 +208,14 @@ int fildecrypt(const char *pass,
     	} //create threads for decryption
 
     	for (int i=0; i < MAXTHREADS && i + j*MAXTHREADS < numops; i++) {
-        	//printf("Joining Block %d\n", i);
+        	//v_printf(verbose, "Joining Block %d\n", i);
        		pthread_join(threads[i + j*MAXTHREADS], NULL);
     	}
 	}
 
     free(blocks);
 
-    printf("Threads Completed\nWriting Data.\n\n");
+    v_printf(verbose, "Threads Completed\nWriting Data.\n\n");
 
     tmpread = realloc(tmpread, BYTENUM);
     

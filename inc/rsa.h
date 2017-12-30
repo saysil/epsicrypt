@@ -52,12 +52,14 @@ int filencrypt(const char *pass,       /* Minimum File perms: */
                FILE       *opt,        /* -r-- --- ---        */
                FILE       *end,        /* --w- -r- -r-        */
                FILE       *entropy,    /* -r-- -r- -r-        */
-               uint32_t    bitnum);
+               uint32_t    bitnum,
+               char        debug);
 
 int fildecrypt(const char *pass,
                FILE       *opt,        /* -r-- --- ---        */
                FILE       *end,        /* --w- -r- -r-        */
-               FILE       *entropy);   /* -r-- -r- -r-        */
+               FILE       *entropy,    /* -r-- -r- -r-        */
+               char        debug);
 
 #endif
 

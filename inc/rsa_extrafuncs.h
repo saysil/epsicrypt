@@ -29,5 +29,14 @@ void buffrommpz(mpz_t *restrict opt,
                 void  *restrict buf,
                 int             size);
 
+#define v_printf(verbose, ...) ( \
+\
+    { \
+        if (verbose) {\
+            printf(__VA_ARGS__); \
+        } \
+    } \
+)
+
 #endif
 
